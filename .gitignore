@@ -1,39 +1,53 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-
-# Virtual env
+# ==========================================
+# 1. MÔI TRƯỜNG PYTHON (VIRTUAL ENV)
+# ==========================================
 .venv/
 venv/
 env/
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Jupyter
-.ipynb_checkpoints/
+# ==========================================
+# 2. DỮ LIỆU (DATASETS)
+# Rất quan trọng: Không push dữ liệu MIT-BIH lên Git
+# ==========================================
+data/raw/*
+data/processed/*
+*.csv
+*.json
 
-# Secrets
-.env
+# (Tùy chọn) Giữ lại cấu trúc thư mục data nhưng bỏ qua file bên trong
+!data/raw/.gitkeep
+!data/processed/.gitkeep
 
-# Data
-data/raw/
-data/interim/
-data/processed/
+# ==========================================
+# 3. TRỌNG SỐ MÔ HÌNH (MODEL WEIGHTS)
+# Các file .pth thường rất nặng (vài chục đến vài trăm MB)
+# ==========================================
+*.pth
+*.pt
 
-# Training artifacts
-checkpoints/
+# ==========================================
+# 4. LOGS & KẾT QUẢ ĐẦU RA (OUTPUTS)
+# Bỏ qua các biểu đồ, báo cáo và logs của WandB sinh ra khi chạy
+# ==========================================
 wandb/
-outputs/logs/
-outputs/tables/
-outputs/figures/
+learning_curves.png
+confusion_matrix.png
+patient_diagnosis_report.csv
+patient_*_report.csv
+logs/
 
-# OS/editor
-.DS_Store
-Thumbs.db
+# # ==========================================
+# # 5. JUPYTER NOTEBOOK
+# # ==========================================
+# .ipynb_checkpoints/
+
+# ==========================================
+# 6. HỆ ĐIỀU HÀNH & IDE (TRÌNH BIÊN DỊCH)
+# ==========================================
 .vscode/
 .idea/
-
-# Model files
-*.pt
-*.pth
-*.ckpt
+.DS_Store
+Thumbs.db
