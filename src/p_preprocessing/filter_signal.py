@@ -12,14 +12,21 @@ def cheby2_bandpass_filter(signal, fs=360, lowcut=0.5, highcut=48, order=4, rs=4
 
   sos = cheby2(order, rs, [low, high], btype='bandpass', output='sos')
 
-  filtered = sosfiltfilt(sos, signal)
+  padlen = min(len(signal) - 1, 100)
+  filtered = sosfiltfilt(sos, signal, padlen=padlen)
 
   return filtered
 
 
 def wavelet_denoise(signal, wavelet='db4', level=6):
 
-  coeffs = pywt.wavedec(signal, wavelet, level=level)
+  try:
+    coeffs = pywt.wavedec(signal, wavelet, level=level)
+
+  except ValueError:
+    max_level = pywt.dwt_max_level(len(signal), wavelet)
+    level = min(level, max_level)
+    coeffs = pywt.wavedec(signal, wavelet, level=level)
 
   cA = coeffs[0]
   cDs = coeffs[1:]
@@ -40,7 +47,10 @@ def wavelet_denoise(signal, wavelet='db4', level=6):
   new_coeffs = [cA] + new_cDs
   denoised = pywt.waverec(new_coeffs, wavelet)
 
-  return denoised[:len(signal)]
+  if denoised is not None:
+    return denoised[:len(signal)]
+  else:
+    return signal
 
 
 def preprocess_signal(signal, fs=360):

@@ -1,5 +1,5 @@
 import numpy as np
-from constant import VALID_SYMBOLS, AAMI_MAP, CLASS_TO_IDX
+from src.constant import VALID_SYMBOLS, AAMI_MAP, CLASS_TO_IDX
 
 #########################################################################################################################
 

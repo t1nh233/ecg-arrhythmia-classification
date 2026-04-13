@@ -1,7 +1,11 @@
+torch
 numpy
 pandas
 scipy
 PyWavelets
 matplotlib
 scikit-learn
+seaborn
 tqdm
+wandb
+optuna

@@ -1,7 +1,7 @@
-from preprocessing.filter_signal import preprocess_signal
-from preprocessing.mapping_ann import filter_valid_beats, map_to_aami
-from preprocessing.rr_proc import extract_rr_feature
-from preprocessing.segment_beat import segment_norm_signal
+from src.p_preprocessing.filter_signal import preprocess_signal
+from src.p_preprocessing.mapping_ann import filter_valid_beats, map_to_aami
+from src.p_preprocessing.rr_proc import extract_rr_feature
+from src.p_preprocessing.segment_beat import segment_norm_signal
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -13,11 +13,16 @@ def load_patient_data(patient_id, data_dir):
     signal_path = f"{data_dir}/{patient_id}_ekg.csv"
     ann_path = f"{data_dir}/{patient_id}_annotations_1.csv"
 
-    signal = pd.read_csv(signal_path).values.squeeze()
+    df_signal = pd.read_csv(signal_path)
+
+    if 'MLII' in df_signal.columns:
+        signal = df_signal['MLII'].values
+    else:
+        signal = df_signal.iloc[:, 0].values
 
     ann = pd.read_csv(ann_path)
-    r_index = ann['sample'].values
-    labels = ann['symbol'].values
+    r_index = ann['index'].values
+    labels = ann['annotation_symbol'].values
 
     return signal, r_index, labels
 
@@ -52,13 +57,18 @@ def build_dataset(patient_ids, data_dir):
     all_beats, all_rr, all_labels = [], [], []
 
     for pid in patient_ids:
-        signal, r_index, labels = load_patient_data(pid, data_dir)
+        
+        try:
+            signal, r_index, labels = load_patient_data(pid, data_dir)
+            beats, rr, y = process_patient(signal, r_index, labels)
 
-        beats, rr, y = process_patient(signal, r_index, labels)
+            all_beats.append(beats)
+            all_rr.append(rr)
+            all_labels.append(y)
 
-        all_beats.append(beats)
-        all_rr.append(rr)
-        all_labels.append(y)
+        except Exception as e:
+            print(f"Bỏ qua bệnh nhân {pid} do lỗi dữ liệu: {e}")
+            continue
 
     X = np.concatenate(all_beats)
     RR = np.concatenate(all_rr)

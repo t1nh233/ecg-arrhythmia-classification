@@ -1,5 +1,5 @@
 # ==========================================
-# 1. MÔI TRƯỜNG PYTHON (VIRTUAL ENV)
+# 1. MÔI TRƯỜNG PYTHON & IDE
 # ==========================================
 .venv/
 venv/
@@ -7,47 +7,56 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+.vscode/
+.idea/
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
 
 # ==========================================
-# 2. DỮ LIỆU (DATASETS)
-# Rất quan trọng: Không push dữ liệu MIT-BIH lên Git
+# 2. DỮ LIỆU (RAW & PROCESSED DATA)
+# Ngăn chặn đẩy dữ liệu y tế nặng lên GitHub
 # ==========================================
-data/raw/*
+dataraw/raw/*
 data/processed/*
-*.csv
-*.json
+*.npy
+*.dat
+*.atr
+*.hea
 
-# (Tùy chọn) Giữ lại cấu trúc thư mục data nhưng bỏ qua file bên trong
+# Giữ lại cấu trúc thư mục rỗng cho người khác clone về
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
 # ==========================================
-# 3. TRỌNG SỐ MÔ HÌNH (MODEL WEIGHTS)
-# Các file .pth thường rất nặng (vài chục đến vài trăm MB)
+# 3. TRỌNG SỐ MÔ HÌNH (MODEL CHECKPOINTS)
+# Tuyệt đối không push file .pth vì nó rất nặng
 # ==========================================
+checkpoints/*
 *.pth
 *.pt
 
+# Giữ lại thư mục rỗng
+!checkpoints/.gitkeep
+
 # ==========================================
-# 4. LOGS & KẾT QUẢ ĐẦU RA (OUTPUTS)
-# Bỏ qua các biểu đồ, báo cáo và logs của WandB sinh ra khi chạy
+# 4. KẾT QUẢ ĐẦU RA (FIGURES & REPORTS)
+# Đã MỞ KHÓA thư mục chứa ảnh (outputs/figure) để Git lưu lại
+# ==========================================
+outputs/report/*
+
+# Giữ lại cấu trúc thư mục report
+!outputs/report/.gitkeep
+
+# Mở khóa cho 2 file báo cáo tổng quan (để show kết quả)
+!outputs/report/quantitative_report.txt
+!outputs/report/quantitative_report.csv
+
+# Chặn các báo cáo riêng lẻ của bệnh nhân khi chạy predict
+patient_*_report.csv
+
+# ==========================================
+# 5. LOGS & TRACKING (WANDB)
 # ==========================================
 wandb/
-learning_curves.png
-confusion_matrix.png
-patient_diagnosis_report.csv
-patient_*_report.csv
 logs/
-
-# # ==========================================
-# # 5. JUPYTER NOTEBOOK
-# # ==========================================
-# .ipynb_checkpoints/
-
-# ==========================================
-# 6. HỆ ĐIỀU HÀNH & IDE (TRÌNH BIÊN DỊCH)
-# ==========================================
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db

@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+#########################################################################################################################
+
 class Net(nn.Module):
 
     def __init__(self, in_channels=1):
@@ -27,12 +29,14 @@ class Net(nn.Module):
             nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
         )
 
+        ## Giu nguyen outchannel=64 de dua vao BiGRU
         self.conv4 = nn.Sequential(
             nn.Conv1d(in_channels=64, out_channels=64, kernel_size=27, padding=13),
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
         )
+
 
     def forward(self, x):
 

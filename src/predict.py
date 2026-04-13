@@ -6,14 +6,13 @@ import os
 import pandas as pd
 
 from src.config import cfg
-from models.hybrid_model import Hybrid_Model
-from src.constant import CLASS_TO_IDX 
-from preprocessing.proc_patient import build_dataset
-from constant import IDX_TO_CLASS
+from src.models.hybrid_model import Hybrid_Model
+from src.constant import CLASS_TO_IDX, IDX_TO_CLASS
+from src.p_preprocessing.proc_patient import build_dataset
 
+#########################################################################################################################
 
 def preprocess_patient_data(patient_input, data_raw_path):
-
     print(f"Đang tiền xử lý tín hiệu cho bệnh nhân: {patient_input}...")
 
     patient_id = str(patient_input).replace('\\', '/').split('/')[-1].split('.')[0]
@@ -57,14 +56,11 @@ def run_inference(cfg, patient_file):
     # 3. Suy luận (Inference)
     model.eval()
     results = []
-    
-    # Tên đầy đủ để hiển thị cho đẹp
+
     full_names = {
         'N': 'Bình thường',
         'S': 'Ngoại tâm thu trên thất',
-        'V': 'Ngoại tâm thu thất',
-        'F': 'Nhịp hợp nhất',
-        'Q': 'Không xác định'
+        'V': 'Ngoại tâm thu thất'
     }
 
     with torch.no_grad():

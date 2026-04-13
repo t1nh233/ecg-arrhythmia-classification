@@ -10,19 +10,16 @@ VALID_SYMBOLS = {
     'N','L','R','e','j','·','n',
     'A','a','J','S',
     'V','E','r',
-    'F',
-    '/','f','Q'
+    'F' 
 }
 
 AAMI_MAP = {
     'N': 'N','L': 'N','R': 'N','e': 'N','j': 'N','·':'N','n':'N',
     'A': 'S','a': 'S','J': 'S','S': 'S',
     'V': 'V','E': 'V','r':'V',
-    'F': 'F',
-    '/': 'Q','f': 'Q','Q': 'Q'
+    'F': 'V',
 }
 
-CLASS_TO_IDX = {'N':0, 'S':1, 'V':2, 'F':3, 'Q':4}
+CLASS_TO_IDX = {'N':0, 'S':1, 'V':2}
 
 IDX_TO_CLASS = {v: k for k, v in CLASS_TO_IDX.items()}
-

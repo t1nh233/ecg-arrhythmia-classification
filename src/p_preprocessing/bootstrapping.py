@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.utils import resample
 
+#########################################################################################################################
+
 def apply_bootstrapping(X_beats, X_rr, y, target_samples=30000, random_state=42):
 
     print(f"Bắt đầu Bootstrapping ép mỗi lớp về {target_samples} mẫu...")
@@ -9,10 +11,9 @@ def apply_bootstrapping(X_beats, X_rr, y, target_samples=30000, random_state=42)
     X_beats_bal, X_rr_bal, y_bal = [], [], []
     
     for cls in classes:
-        # Lấy index của lớp hiện tại
+
         idx_cls = np.where(y == cls)[0]
-        
-        # Quyết định: Resample có hoàn lại (True) nếu mẫu ít hơn target, ngược lại False
+
         replace_flag = len(idx_cls) < target_samples 
         
         beats_res, rr_res, y_res = resample(
