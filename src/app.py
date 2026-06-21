@@ -1,8 +1,5 @@
 import os
 import sys
-# Thêm thư mục gốc dự án vào sys.path để tránh lỗi ModuleNotFoundError
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import glob
 import shutil
 import tempfile
@@ -14,36 +11,41 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
+# Add the project root directory to sys.path to avoid ModuleNotFoundError when executing the script directly
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.config import cfg
 from src.models.hybrid_model import Hybrid_Model
 from src.constant import IDX_TO_CLASS
 from src.p_preprocessing.proc_patient import process_patient, load_patient_data
 
-app = FastAPI(title="ECG Arrhythmia Classification System", version="1.0.0")
+app = FastAPI(title="ECG Arrhythmia Classification System API", version="1.0.0")
 
-# Setup paths
+# Setup project directories for static assets
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-# Mount static files if directory exists
+# Mount frontend static directory
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def read_root():
+    """Serves the main single-page application dashboard."""
     index_file = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_file):
         return FileResponse(index_file)
-    return HTMLResponse("<h2>Frontend static files not found yet. Please create static/index.html</h2>")
+    return HTMLResponse("<h2>Frontend static files not found yet. Please ensure static/index.html is created.</h2>")
 
 @app.get("/api/download/sample/ekg")
 def download_sample_ekg():
+    """Reads a sample patient EKG file and returns the first 1000 records as a downloadable template CSV."""
     file_path = os.path.join(cfg.data_raw_path, "100_ekg.csv")
     if not os.path.exists(file_path):
-        # Fallback to scanning for any ekg file
+        # Fallback: scan for any other EKG csv file in the raw data folder
         files = glob.glob(os.path.join(cfg.data_raw_path, "*_ekg.csv"))
         if not files:
-            raise HTTPException(status_code=404, detail="Không tìm thấy tệp EKG mẫu nào.")
+            raise HTTPException(status_code=404, detail="Sample EKG template files could not be found on the server.")
         file_path = files[0]
         
     try:
@@ -53,15 +55,16 @@ def download_sample_ekg():
         df.to_csv(temp_path, index=False)
         return FileResponse(temp_path, media_type="text/csv", filename="sample_ekg.csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi tạo tệp mẫu: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to compile EKG sample: {str(e)}")
 
 @app.get("/api/download/sample/annotation")
 def download_sample_annotation():
+    """Reads a sample annotations file and returns a downloadable template CSV (historical template)."""
     file_path = os.path.join(cfg.data_raw_path, "100_annotations_1.csv")
     if not os.path.exists(file_path):
         files = glob.glob(os.path.join(cfg.data_raw_path, "*_annotations_1.csv"))
         if not files:
-            raise HTTPException(status_code=404, detail="Không tìm thấy tệp nhãn mẫu nào.")
+            raise HTTPException(status_code=404, detail="Sample annotations templates could not be found on the server.")
         file_path = files[0]
         
     try:
@@ -71,21 +74,20 @@ def download_sample_annotation():
         df.to_csv(temp_path, index=False)
         return FileResponse(temp_path, media_type="text/csv", filename="sample_annotations_1.csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi tạo tệp mẫu: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to compile annotation sample: {str(e)}")
 
 @app.get("/api/patients")
 def list_patients():
+    """Scans raw data directories and lists valid patient IDs available locally."""
     raw_path = cfg.data_raw_path
     if not os.path.exists(raw_path):
         return []
     
-    # List all files matching *_ekg.csv
     files = glob.glob(os.path.join(raw_path, "*_ekg.csv"))
     patient_ids = []
     for f in files:
         basename = os.path.basename(f)
         pid = basename.split("_ekg.csv")[0]
-        # Check if corresponding annotations file exists
         ann_path = os.path.join(raw_path, f"{pid}_annotations_1.csv")
         if os.path.exists(ann_path):
             patient_ids.append(pid)
@@ -94,41 +96,43 @@ def list_patients():
 
 @app.post("/api/predict/patient/{patient_id}")
 def predict_patient(patient_id: str):
+    """Processes locally stored patient CSV data and returns detailed beat predictions."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     ekg_path = os.path.join(cfg.data_raw_path, f"{patient_id}_ekg.csv")
     ann_path = os.path.join(cfg.data_raw_path, f"{patient_id}_annotations_1.csv")
     
     if not os.path.exists(ekg_path) or not os.path.exists(ann_path):
-        raise HTTPException(status_code=404, detail=f"Dữ liệu của bệnh nhân {patient_id} không đầy đủ hoặc không tìm thấy.")
+        raise HTTPException(status_code=404, detail=f"Data for patient {patient_id} is incomplete or missing.")
         
     try:
+        # Load and process raw records to extract segmented beats and RR-interval properties
         signal, r_index, labels = load_patient_data(patient_id, cfg.data_raw_path)
         beats, valid_rr_seg, mapped_labels = process_patient(signal, r_index, labels)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi tiền xử lý tín hiệu: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Signal preprocessing failed: {str(e)}")
         
     if len(beats) == 0:
-        raise HTTPException(status_code=400, detail="Không thể trích xuất nhịp tim hợp lệ từ dữ liệu bệnh nhân.")
+        raise HTTPException(status_code=400, detail="No valid heartbeats could be segmented from patient data.")
 
-    # Load Model
+    # Load hybrid model weights
     model = Hybrid_Model(num_classes=cfg.num_classes, gru_hidden_size=cfg.gru_hidden_size).to(device)
     model_path = os.path.join(cfg.saved_model_path, "best_ecg_model.pth")
     
     if not os.path.exists(model_path):
-        raise HTTPException(status_code=500, detail="Không tìm thấy trọng số model AI (best_ecg_model.pth).")
+        raise HTTPException(status_code=500, detail="Trained AI model weights (best_ecg_model.pth) not found.")
         
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     
-    # Process
+    # Pack tensors
     beats_tensor = torch.tensor(beats, dtype=torch.float32).unsqueeze(1).to(device)
     rrs_tensor = torch.tensor(valid_rr_seg, dtype=torch.float32).to(device)
     
-    full_names = {
-        'N': 'Bình thường',
-        'S': 'Ngoại tâm thu trên thất (S)',
-        'V': 'Ngoại tâm thu thất (V)'
+    label_mappings = {
+        'N': 'Normal (N)',
+        'S': 'Supraventricular ectopic (S)',
+        'V': 'Ventricular ectopic (V)'
     }
     
     results = []
@@ -147,11 +151,11 @@ def predict_patient(patient_id: str):
             
             results.append({
                 "beat_index": i + 1,
-                "prediction": full_names.get(ai_label, ai_label),
+                "prediction": label_mappings.get(ai_label, ai_label),
                 "confidence": float(confidence),
-                "ground_truth": full_names.get(true_label, "Không xác định"),
+                "ground_truth": label_mappings.get(true_label, "Unknown"),
                 "is_correct": is_correct,
-                "signal": beats[i].tolist()  # 300 points
+                "signal": beats[i].tolist()
             })
             
     total_beats = len(results)
@@ -160,7 +164,7 @@ def predict_patient(patient_id: str):
     
     class_counts = {"N": 0, "S": 0, "V": 0}
     for r in results:
-        abbr = "N" if "Bình thường" in r["prediction"] else ("S" if "(S)" in r["prediction"] else "V")
+        abbr = "N" if "Normal" in r["prediction"] else ("S" if "(S)" in r["prediction"] else "V")
         class_counts[abbr] += 1
         
     return {
@@ -168,7 +172,7 @@ def predict_patient(patient_id: str):
         "accuracy": accuracy,
         "total_beats": total_beats,
         "class_counts": class_counts,
-        "results": results[:100]  # Cap at 100 beats for frontend rendering efficiency
+        "results": results[:100]
     }
 
 from scipy.signal import find_peaks
@@ -177,18 +181,25 @@ from src.p_preprocessing.rr_proc import extract_rr_feature
 from src.p_preprocessing.segment_beat import segment_norm_signal
 
 def detect_r_peaks(signal, fs=360):
-    # R-peaks are usually the sharpest positive deflections
-    # We find peaks with a minimum distance of 200ms (72 samples at 360Hz)
-    # The height threshold is set dynamically based on signal percentile
+    """
+    Automated QRS R-Peak detector using dynamic height thresholds.
+    Filters peaks based on a minimum heart rate spacing criteria (72 samples at 360Hz).
+    """
+    # Use the 75th percentile of amplitude value as the baseline peak height threshold
     height_thresh = float(np.percentile(signal, 75))
     peaks, _ = find_peaks(signal, distance=72, height=height_thresh)
     return peaks
 
 @app.post("/api/predict/upload")
 def predict_upload(ekg_file: UploadFile = File(...)):
+    """
+    SOTA REST API Endpoint.
+    Accepts a single raw EKG CSV file, detects R-peaks, segments beats,
+    extracts RR features, and returns classification predictions.
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # Save files to temp directory
+    # Save the uploaded file temporarily
     temp_dir = tempfile.mkdtemp()
     ekg_path = os.path.join(temp_dir, "uploaded_ekg.csv")
     
@@ -202,51 +213,52 @@ def predict_upload(ekg_file: UploadFile = File(...)):
         else:
             signal = df.iloc[:, 0].values
             
-        # 1. Denoise and clean signal
+        # 1. Clean the signal using Chebyshev filter and Wavelet Denoising
         clean_signal = preprocess_signal(signal, fs=360)
         
-        # 2. Automatically locate R-peaks
+        # 2. Run automated R-peak detection
         r_peaks = detect_r_peaks(clean_signal, fs=360)
         
+        # Fallback: lower height threshold if EKG amplitude is weak
         if len(r_peaks) < 10:
-            # Fallback to lower threshold if not enough peaks detected
             height_thresh = float(np.percentile(clean_signal, 50))
             r_peaks, _ = find_peaks(clean_signal, distance=72, height=height_thresh)
             
         if len(r_peaks) < 10:
-            raise ValueError("Không tìm thấy đủ số lượng nhịp tim (R-peaks) trong tệp tin.")
+            raise ValueError("Insufficient QRS complexes detected. Please ensure the CSV contains a valid, clean ECG signal.")
             
-        # 3. Extract RR Features
+        # 3. Extract Heart Rate Variability (RR-intervals) Features
         rr_features, valid_r, valid_idx = extract_rr_feature(r_peaks, fs=360)
         
-        # 4. Segment heartbeats
+        # 4. Segment heartbeats into 300-point arrays
         beats, _, final_rr = segment_norm_signal(clean_signal, valid_r, valid_idx, rr_features)
         
     except Exception as e:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý file tải lên: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process uploaded file: {str(e)}")
         
     shutil.rmtree(temp_dir, ignore_errors=True)
         
     if len(beats) == 0:
-        raise HTTPException(status_code=400, detail="Không thể trích xuất nhịp tim hợp lệ từ file tải lên.")
+        raise HTTPException(status_code=400, detail="No valid heartbeats could be segmented from the uploaded ECG signal.")
         
     # Load Model
     model = Hybrid_Model(num_classes=cfg.num_classes, gru_hidden_size=cfg.gru_hidden_size).to(device)
     model_path = os.path.join(cfg.saved_model_path, "best_ecg_model.pth")
     if not os.path.exists(model_path):
-        raise HTTPException(status_code=500, detail="Không tìm thấy trọng số model AI.")
+        raise HTTPException(status_code=500, detail="AI Model weights file not found on the server.")
         
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     
+    # Process tensors
     beats_tensor = torch.tensor(beats, dtype=torch.float32).unsqueeze(1).to(device)
     rrs_tensor = torch.tensor(final_rr, dtype=torch.float32).to(device)
     
-    full_names = {
-        'N': 'Bình thường',
-        'S': 'Ngoại tâm thu trên thất (S)',
-        'V': 'Ngoại tâm thu thất (V)'
+    label_mappings = {
+        'N': 'Normal (N)',
+        'S': 'Supraventricular ectopic (S)',
+        'V': 'Ventricular ectopic (V)'
     }
     
     results = []
@@ -262,10 +274,10 @@ def predict_upload(ekg_file: UploadFile = File(...)):
             
             results.append({
                 "beat_index": i + 1,
-                "prediction": full_names.get(ai_label, ai_label),
+                "prediction": label_mappings.get(ai_label, ai_label),
                 "confidence": float(confidence),
-                "ground_truth": "Không xác định (AI Tự động phát hiện)",
-                "is_correct": True, # Automatically true since no doctor labels uploaded
+                "ground_truth": "Unknown (Automated Peak Detection)",
+                "is_correct": True, # Automatically true since no doctor annotations were uploaded
                 "signal": beats[i].tolist()
             })
             
@@ -273,11 +285,11 @@ def predict_upload(ekg_file: UploadFile = File(...)):
     
     class_counts = {"N": 0, "S": 0, "V": 0}
     for r in results:
-        abbr = "N" if "Bình thường" in r["prediction"] else ("S" if "(S)" in r["prediction"] else "V")
+        abbr = "N" if "Normal" in r["prediction"] else ("S" if "(S)" in r["prediction"] else "V")
         class_counts[abbr] += 1
         
     return {
-        "patient_id": "Tệp tự động phát hiện",
+        "patient_id": "Auto-detected Upload",
         "accuracy": 1.0,
         "total_beats": total_beats,
         "class_counts": class_counts,

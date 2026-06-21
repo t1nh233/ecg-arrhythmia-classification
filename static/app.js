@@ -1,14 +1,14 @@
 let chart = null;
 let currentResults = [];
 let fileEkg = null;
-let fileAnn = null;
 
+// Initialize app components on DOM loaded
 document.addEventListener('DOMContentLoaded', () => {
     initChart();
     setupEventListeners();
 });
 
-// Toast notification helper
+// Toast notification helper to display status popups
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
     toast.textContent = message;
@@ -27,7 +27,7 @@ function showToast(message, type = 'info') {
     }, 4000);
 }
 
-// Chart initialization
+// Chart.js configuration for plotting heartbeat waves
 function initChart() {
     const ctx = document.getElementById('ecgChart').getContext('2d');
     chart = new Chart(ctx, {
@@ -35,7 +35,7 @@ function initChart() {
         data: {
             labels: Array.from({ length: 300 }, (_, i) => i + 1),
             datasets: [{
-                label: 'Tín hiệu điện tâm đồ (ECG MLII)',
+                label: 'ECG Signal Amplitude',
                 data: Array(300).fill(0),
                 borderColor: '#00e5ff',
                 borderWidth: 2.5,
@@ -66,12 +66,12 @@ function initChart() {
     });
 }
 
-// Setup Event Handlers
+// Event listeners for file loading and submission
 function setupEventListeners() {
-    // File Upload Zone interaction
     const zone = document.getElementById('upload-zone');
     const filePicker = document.getElementById('file-picker');
     
+    // Clicking upload zone triggers hidden input dialog
     zone.addEventListener('click', () => {
         filePicker.click();
     });
@@ -84,7 +84,7 @@ function setupEventListeners() {
         }
     });
 
-    // Drag-and-drop
+    // Drag over styling
     zone.addEventListener('dragover', (e) => {
         e.preventDefault();
         zone.classList.add('dragover');
@@ -94,6 +94,7 @@ function setupEventListeners() {
         zone.classList.remove('dragover');
     });
 
+    // File drop event handling
     zone.addEventListener('drop', (e) => {
         e.preventDefault();
         zone.classList.remove('dragover');
@@ -105,7 +106,7 @@ function setupEventListeners() {
         }
     });
 
-    // Analyze Custom Uploaded files
+    // Submits the EKG file to the AI backend
     document.getElementById('btn-upload-analyze').addEventListener('click', async () => {
         if (!fileEkg) return;
         
@@ -120,11 +121,11 @@ function setupEventListeners() {
             });
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || 'Lỗi phân tích tệp EKG.');
+                throw new Error(errorData.detail || 'ECG Analysis request failed.');
             }
             const data = await response.json();
             displayResults(data);
-            showToast('Chẩn đoán thành công tệp EKG!');
+            showToast('AI diagnostics successfully completed!');
         } catch (e) {
             showToast(e.message, 'error');
         } finally {
@@ -133,6 +134,7 @@ function setupEventListeners() {
     });
 }
 
+// Client-side file verification and formatting checks
 function verifyFile(file) {
     const card = document.getElementById('format-check-card');
     card.style.display = 'block';
@@ -142,11 +144,11 @@ function verifyFile(file) {
     const chkMatch = document.getElementById('chk-data-match');
     
     chkCol.className = '';
-    chkCol.textContent = '⌛ Đang đọc tiêu đề cột...';
+    chkCol.textContent = '⌛ Reading column headers...';
     chkSize.className = '';
-    chkSize.textContent = '⌛ Đang kiểm tra số dòng...';
+    chkSize.textContent = '⌛ Checking sample lines...';
     chkMatch.className = '';
-    chkMatch.textContent = '⌛ Đang đối chiếu tham số...';
+    chkMatch.textContent = '⌛ Verifying compatibility parameters...';
     
     let colValid = false;
     let sizeValid = false;
@@ -159,81 +161,83 @@ function verifyFile(file) {
             const firstLine = lines[0].trim();
             const cols = firstLine.split(',').map(c => c.replace(/"/g, '').trim());
             
-            // Check signal columns
+            // 1. Verify signal columns
             if (cols.includes('MLII') || cols.length > 0) {
                 chkCol.className = 'valid';
-                chkCol.textContent = `✅ Cột dữ liệu: (${cols.slice(0, 3).join(', ')}${cols.length > 3 ? '...' : ''})`;
+                chkCol.textContent = `✅ Column verified: (${cols.slice(0, 3).join(', ')}${cols.length > 3 ? '...' : ''})`;
                 colValid = true;
             } else {
                 chkCol.className = 'invalid';
-                chkCol.textContent = '❌ Không tìm thấy cột tín hiệu hợp lệ';
+                chkCol.textContent = '❌ No valid signal column headers found';
             }
             
-            // Check file size / row count (needs to be long enough for heartbeat detection, e.g. > 1000 samples)
+            // 2. Verify signal length
             if (lines.length > 1000) {
                 chkSize.className = 'valid';
-                chkSize.textContent = `✅ Độ dài tín hiệu: ${lines.length - 1} samples (Hợp lệ)`;
+                chkSize.textContent = `✅ Signal length: ${lines.length - 1} samples (Valid)`;
                 sizeValid = true;
             } else {
                 chkSize.className = 'invalid';
-                chkSize.textContent = `❌ Tín hiệu quá ngắn (${lines.length - 1} samples, yêu cầu > 1000)`;
+                chkSize.textContent = `❌ Signal too short (${lines.length - 1} samples, minimum 1000 required)`;
             }
             
-            // Final validation status
+            // 3. Final compatibility verdict
             const btn = document.getElementById('btn-upload-analyze');
             if (colValid && sizeValid) {
                 chkMatch.className = 'valid';
-                chkMatch.textContent = '✅ Đủ điều kiện phân tích AI!';
+                chkMatch.textContent = '✅ File is fully compatible with AI models!';
                 btn.disabled = false;
             } else {
                 chkMatch.className = 'invalid';
-                chkMatch.textContent = '❌ Tập tin không tương thích';
+                chkMatch.textContent = '❌ File format is incompatible';
                 btn.disabled = true;
             }
         };
-        reader.readAsText(file.slice(0, 50000)); // Read first 50KB for checks
+        reader.readAsText(file.slice(0, 50000));
     } else {
         chkCol.className = 'invalid';
-        chkCol.textContent = '❌ Không tìm thấy tệp';
+        chkCol.textContent = '❌ File not found';
     }
 }
 
+// Update the list of uploaded files in the UI
 function updateFileList() {
     const list = document.getElementById('selected-files');
     list.innerHTML = '';
     
     if (fileEkg) {
-        list.innerHTML += `<div>🟢 EKG: ${fileEkg.name} (${(fileEkg.size / 1024).toFixed(1)} KB)</div>`;
+        list.innerHTML += `<div>🟢 EKG Signal: ${fileEkg.name} (${(fileEkg.size / 1024).toFixed(1)} KB)</div>`;
     }
 }
 
+// Adjust UI loading state
 function setLoadingState(isLoading) {
     const ubtn = document.getElementById('btn-upload-analyze');
     if (isLoading) {
         ubtn.disabled = true;
-        ubtn.textContent = '⏳ Đang phân tích bằng AI...';
+        ubtn.textContent = '⏳ Analyzing using AI...';
     } else {
         ubtn.disabled = false;
-        ubtn.textContent = '⚡ Bắt đầu Phân tích AI';
+        ubtn.textContent = '⚡ Start AI Diagnosis';
     }
 }
 
-// Display results in GUI
+// Display analysis reports in dashboard
 function displayResults(data) {
-    // Metrics
+    // Populate stats
     document.getElementById('metric-total').textContent = data.total_beats;
     document.getElementById('metric-accuracy').textContent = `${(data.accuracy * 100).toFixed(2)}%`;
     document.getElementById('metric-v').textContent = data.class_counts.V;
     document.getElementById('metric-s').textContent = data.class_counts.S;
     
-    // Table
+    // Build tables
     const tbody = document.getElementById('results-tbody');
     tbody.innerHTML = '';
     
     currentResults = data.results;
     
     if (currentResults.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Không có nhịp tim nào</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No heartbeats detected.</td></tr>';
         return;
     }
     
@@ -242,14 +246,14 @@ function displayResults(data) {
         tr.dataset.index = index;
         
         const badgeClass = res.prediction.includes('(V)') ? 'text-red' : (res.prediction.includes('(S)') ? 'text-yellow' : 'text-green');
-        const correctText = res.is_correct ? '🟢 Đúng' : '🔴 Sai';
+        const statusText = res.is_correct ? '🟢 Correct' : '🔴 Incorrect';
         
         tr.innerHTML = `
             <td>#${res.beat_index}</td>
             <td class="${badgeClass} font-weight:600">${res.prediction}</td>
             <td>${(res.confidence * 100).toFixed(1)}%</td>
             <td>${res.ground_truth}</td>
-            <td>${correctText}</td>
+            <td>${statusText}</td>
         `;
         
         tr.addEventListener('click', () => {
@@ -259,11 +263,11 @@ function displayResults(data) {
         tbody.appendChild(tr);
     });
     
-    // Plot the very first beat by default
+    // Auto-plot the first heartbeat segment
     selectBeat(0);
 }
 
-// Highlight a heartbeat and plot its signal
+// Select a specific beat row, scroll into view, and draw its waveform on the plotter
 function selectBeat(index) {
     const rows = document.querySelectorAll('#results-tbody tr');
     rows.forEach(r => r.classList.remove('active-row'));
@@ -277,9 +281,9 @@ function selectBeat(index) {
     const beat = currentResults[index];
     if (!beat) return;
     
-    document.getElementById('selected-beat-badge').textContent = `Nhịp số: #${beat.beat_index} (${beat.prediction})`;
+    document.getElementById('selected-beat-badge').textContent = `Beat: #${beat.beat_index} (${beat.prediction})`;
     
-    // Determine color based on prediction class
+    // Match line colors to the diagnostic class
     let color = '#00e676'; // Normal - Green
     if (beat.prediction.includes('(V)')) color = '#ff1744'; // Ventricular - Red
     if (beat.prediction.includes('(S)')) color = '#ffea00'; // Supraventricular - Yellow
