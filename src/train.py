@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 import numpy as np
 import os
 import copy
-import optuna
 from src.models.hybrid_model import Hybrid_Model
 from src.dataset import ecg_arrhythmia_dataset
 from src.evaluate import Model_Evaluator
@@ -30,12 +29,12 @@ def model_training(cfg, trial=None, ext_train_loader=None, ext_val_loader=None):
         X_train_rr = np.load(f"{cfg.data_processed_path}/X_train_rr.npy")
         y_train = np.load(f"{cfg.data_processed_path}/y_train.npy")
 
-        X_test_beats = np.load(f"{cfg.data_processed_path}/X_test_beats.npy")
-        X_test_rr = np.load(f"{cfg.data_processed_path}/X_test_rr.npy")
-        y_test = np.load(f"{cfg.data_processed_path}/y_test.npy")
+        X_val_beats = np.load(f"{cfg.data_processed_path}/X_val_beats.npy")
+        X_val_rr = np.load(f"{cfg.data_processed_path}/X_val_rr.npy")
+        y_val = np.load(f"{cfg.data_processed_path}/y_val.npy")
 
         train_dataset = ecg_arrhythmia_dataset(X_train_beats, X_train_rr, y_train)
-        val_dataset = ecg_arrhythmia_dataset(X_test_beats, X_test_rr, y_test)
+        val_dataset = ecg_arrhythmia_dataset(X_val_beats, X_val_rr, y_val)
 
         train_loader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=cfg.batch_size, shuffle=False)
@@ -103,6 +102,7 @@ def model_training(cfg, trial=None, ext_train_loader=None, ext_val_loader=None):
             print(f"Epoch [{epoch+1:02d}/{cfg.epochs}] | Train Loss: {train_loss:.4f}, Acc: {train_acc:.2f}% | Val Loss: {val_loss:.4f}, Acc: {val_acc:.2f}%")
 
         if trial is not None:
+            import optuna
             trial.report(val_loss, epoch)
             if trial.should_prune():
                 raise optuna.exceptions.TrialPruned()
@@ -128,11 +128,18 @@ def model_training(cfg, trial=None, ext_train_loader=None, ext_val_loader=None):
     model.load_state_dict(best_model_weights)
     model.eval()
     
+    print("Đang nạp tập Test để đánh giá khách quan...")
+    X_test_beats = np.load(f"{cfg.data_processed_path}/X_test_beats.npy")
+    X_test_rr = np.load(f"{cfg.data_processed_path}/X_test_rr.npy")
+    y_test = np.load(f"{cfg.data_processed_path}/y_test.npy")
+    test_dataset = ecg_arrhythmia_dataset(X_test_beats, X_test_rr, y_test)
+    test_loader = DataLoader(test_dataset, batch_size=cfg.batch_size, shuffle=False)
+
     all_preds = []
     all_labels = []
 
     with torch.no_grad():
-        for beats, rrs, labels in val_loader:
+        for beats, rrs, labels in test_loader:
             beats, rrs = beats.to(device), rrs.to(device)
             outputs = model(beats, rrs)
             _, predicted = torch.max(outputs.data, 1)

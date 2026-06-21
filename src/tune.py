@@ -19,12 +19,12 @@ def preload_data():
     X_train_beats = np.load(f"{cfg.data_processed_path}/X_train_beats.npy")
     X_train_rr = np.load(f"{cfg.data_processed_path}/X_train_rr.npy")
     y_train = np.load(f"{cfg.data_processed_path}/y_train.npy")
-    X_test_beats = np.load(f"{cfg.data_processed_path}/X_test_beats.npy")
-    X_test_rr = np.load(f"{cfg.data_processed_path}/X_test_rr.npy")
-    y_test = np.load(f"{cfg.data_processed_path}/y_test.npy")
+    X_val_beats = np.load(f"{cfg.data_processed_path}/X_val_beats.npy")
+    X_val_rr = np.load(f"{cfg.data_processed_path}/X_val_rr.npy")
+    y_val = np.load(f"{cfg.data_processed_path}/y_val.npy")
 
     train_dataset = ecg_arrhythmia_dataset(X_train_beats, X_train_rr, y_train)
-    val_dataset = ecg_arrhythmia_dataset(X_test_beats, X_test_rr, y_test)
+    val_dataset = ecg_arrhythmia_dataset(X_val_beats, X_val_rr, y_val)
 
     return train_dataset, val_dataset
 

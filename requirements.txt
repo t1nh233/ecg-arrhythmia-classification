@@ -9,3 +9,6 @@ seaborn
 tqdm
 wandb
 optuna
+fastapi
+uvicorn
+python-multipart

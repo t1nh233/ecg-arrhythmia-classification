@@ -4,8 +4,6 @@ import numpy as np
 import random
 import os
 import json
-import wandb
-
 from src.config import cfg
 from src.train import model_training
 from src.predict import run_inference
@@ -49,6 +47,7 @@ def main():
         print("-" * 50)
 
 
+        import wandb
         wandb.init(
             project="ecg-arrhythmia-detection",
             name=args.run_name if args.run_name else "Hybrid-CNN-BiGRU",

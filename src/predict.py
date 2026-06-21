@@ -44,7 +44,7 @@ def run_inference(cfg, patient_file):
     
     # 2. Tải Mô hình & Trọng số
     model = Hybrid_Model(num_classes=cfg.num_classes, gru_hidden_size=cfg.gru_hidden_size).to(device)
-    model_path = f"{cfg.models_path}/best_ecg_model.pth"
+    model_path = f"{cfg.saved_model_path}/best_ecg_model.pth"
     
     if not os.path.exists(model_path):
         print(f"Lỗi: Không tìm thấy trọng số tại {model_path}!")
